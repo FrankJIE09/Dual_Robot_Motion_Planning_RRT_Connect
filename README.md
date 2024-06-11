@@ -1,8 +1,5 @@
 # Dual_Robot_Motion_Planning_RRT_Connect
 The algorithm is designed to plan the motions of two robots simultaneously, ensuring they do not collide with each other or with obstacles.
-### 项目名称：Dual Robot Motion Planning RRT-Connect
-
-#### 英文描述：
 
 **Project Description:**
 
