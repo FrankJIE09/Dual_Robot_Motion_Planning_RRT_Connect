@@ -109,7 +109,7 @@ def rrt_connect(start, goal, obstacles, max_distance, radius, max_iter):
                         [nearest_goal.point[1], new_goal.point[1]],
                         [nearest_goal.point[2], new_goal.point[2]], 'b-')
                 plt.draw()
-                plt.pause(1)
+                plt.pause(0.01)
 
                 if distance(new_goal.point, new_start.point) <= max_distance:
                     path_start = path(new_start)
