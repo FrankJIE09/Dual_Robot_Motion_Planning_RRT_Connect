@@ -7,6 +7,7 @@ from scipy.spatial.transform import Slerp
 from ikpy.chain import Chain
 from Bézier_curve import bezier_curve
 import copy
+from rrt_connect import RRTConnect
 
 
 # 定义一个函数来计算连杆中心位置、关节位置及其半径
@@ -118,13 +119,21 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
 
     target_matrix = np.eye(4)
     target_matrix_r = np.eye(4)
+    iter_count = 0
+    init_node_matrix_r = np.eye(4)
 
+    init_node_matrix_r[:3, :3] = np.dot(init_matrix_r, interp_rots_r[i].as_matrix())
+    init_node_matrix_r[:3, 3] = interp_pos_r[i]
+    last_ik_joint_r = my_chain.inverse_kinematics_frame(init_node_matrix_r,
+                                                       initial_position=np.append(np.append(np.array(0), data.qpos[6:]),
+                                                                                  np.array(0)), orientation_mode='all')
     # 循环控制机械臂的姿态变化
     while i < 2000:
         # 计算目标变换矩阵
         target_matrix[:3, :3] = np.dot(init_matrix, interp_rots[i].as_matrix())
         # target_matrix[:3, :3] = np.dot(init_matrix, init_orientation.as_matrix())
         target_matrix[:3, 3] = interp_pos[i]
+
 
         target_matrix_r[:3, :3] = np.dot(init_matrix_r, interp_rots_r[i].as_matrix())
         target_matrix_r[:3, 3] = interp_pos_r[i]
@@ -138,27 +147,15 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
 
         # 计算连杆信息
         link_info_main = compute_link_info(my_chain, ik_joint)
-        link_info_slave = compute_link_info(my_chain, ik_joint_r, index_begin=7, y_offset=0)
-        link_info = {**link_info_main, **link_info_slave}
-        # 获取link_info的大小
-        num_links = len(link_info)
-        num_features = 3 + 1 + 1 + 3 + 1  # center_joint (3), joint_R (1), length (1), center_pos (3), link_R (1)
+        rrt = RRTConnect(my_chain, start=last_ik_joint_r[1:7], goal=ik_joint_r[1:7], max_iter=1000, step_size=0.1)
+        last_ik_joint_r = ik_joint_r.copy()
+        if iter_count == 0:
+            # 从机械臂路径规划
+            rrt_path = rrt.planning(link_info_main)
+            if rrt_path is None:
+                print("RRT-Connect failed to find a path")
+                break
 
-        # 初始化一个矩阵来存储link_info中的值
-        link_matrix = np.zeros((num_links, num_features))
-
-        # 将link_info中的值填充到矩阵中
-        for iii, (link_id, info) in enumerate(link_info.items()):
-            link_matrix[iii, :3] = info['center_joint']
-            link_matrix[iii, 3] = info['joint_R']
-            link_matrix[iii, 4] = info['length']
-            link_matrix[iii, 5:8] = info['center_pos']
-            link_matrix[iii, 8] = info['link_R']
-        collision = check_collision(O1=link_matrix[:7, :3], O2=link_matrix[7:, :3],
-                                    R1=link_matrix[:7, 3], R2=link_matrix[7:, 3],
-                                    A=link_matrix[:7, 5:8], B=link_matrix[7:, 5:8],
-                                    Ra=link_matrix[:7, 8], Rb=link_matrix[7:, 8])
-        print(collision)
         # 计算初始姿态与舵机的关系
         # A = my_chain.forward_kinematics(np.append(np.append(np.array(0), data.qpos[:6]), np.array(0)))
         # init_orientation.as_matrix().T.dot(A[:3, :3])
