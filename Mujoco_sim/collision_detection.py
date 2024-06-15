@@ -28,12 +28,12 @@ def check_collision(O1, O2, A, B, R1, R2, Ra, Rb):
     # 主机械臂与从机械臂之间的碰撞检测
     for i in range(num_links):
         for j in range(num_links):
-            if np.linalg.norm(O1[i] - O2[j]) < (R1[i] + R2[j]):
-                print(f"Collision detected between O1[{i}] and O2[{j}]")
-                return 1
-            if np.linalg.norm(O1[i] - B[j]) < (R1[i] + Rb[j]):
-                print(f"Collision detected between O1[{i}] and B[{j}]")
-                return 1
+            # if np.linalg.norm(O1[i] - O2[j]) < (R1[i] + R2[j]):
+            #     print(f"Collision detected between O1[{i}] and O2[{j}]")
+            #     return 1
+            # if np.linalg.norm(O1[i] - B[j]) < (R1[i] + Rb[j]):
+            #     print(f"Collision detected between O1[{i}] and B[{j}]")
+            #     return 1
             if np.linalg.norm(A[i] - O2[j]) < (Ra[i] + R2[j]):
                 print(f"Collision detected between A[{i}] and O2[{j}]")
                 return 1

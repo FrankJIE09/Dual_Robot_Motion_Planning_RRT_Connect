@@ -53,6 +53,7 @@ rz90_matrix = rz90.as_matrix()
 
 # 使用Mujoco的viewer来可视化模型
 with mujoco.viewer.launch_passive(model, data) as viewer:
+    time.sleep(5)
     init_orientation = Rotation.from_euler('xyz', [0, 0, 0], degrees=True)
     init_rpy = init_orientation.as_euler('xyz')
 
@@ -155,6 +156,7 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
             rrt_path = rrt.planning(link_info_main)
             if rrt_path is None:
                 print("RRT-Connect failed to find a path")
+                time.sleep(5)
                 break
                 data.ctrl = np.hstack((ik_joint[1:7], last_rrt_path[-1]))
                 mujoco.mj_step(model, data)

@@ -118,7 +118,7 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
 
     target_matrix = np.eye(4)
     target_matrix_r = np.eye(4)
-
+    time.sleep(5)
     # 循环控制机械臂的姿态变化
     while i < 2000:
         # 计算目标变换矩阵
