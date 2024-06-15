@@ -1,5 +1,5 @@
 import time
-
+from collision_detection import check_collision
 import numpy as np
 import mujoco.viewer
 from scipy.spatial.transform import Rotation
@@ -7,6 +7,7 @@ from scipy.spatial.transform import Slerp
 from ikpy.chain import Chain
 from Bézier_curve import bezier_curve
 import copy
+
 # 从URDF文件中创建机械臂链
 my_chain = Chain.from_urdf_file("./config/ur5e.urdf",
                                 active_links_mask=[False, True, True, True, True, True, True, False])
@@ -78,7 +79,7 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
                           ) @ rz90_matrix
 
     path_array_r = np.array([[init_pos_r[0], init_pos_r[1], init_pos_r[2]],
-                             [init_pos_r[0]+1, init_pos_r[1], init_pos_r[2]],
+                             [init_pos_r[0] + 1, init_pos_r[1], init_pos_r[2]],
                              [init_pos_r[0], init_pos_r[1], init_pos_r[2] - 0.2]]
                             ) @ rz90_matrix
 
@@ -108,6 +109,50 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         ik_joint_r = my_chain.inverse_kinematics_frame(target_matrix_r,
                                                        initial_position=np.append(np.append(np.array(0), data.qpos[6:]),
                                                                                   np.array(0)), orientation_mode='all')
+
+        # 存储每个连杆的长度和中心位置
+        link_info = {}
+        for ii in range(1, model.nbody):  # 跳过世界身体 (world body)
+            parent_id = model.body_parentid[ii]
+            if parent_id == 0:
+                # 跳过根身体
+                continue
+            parent_pos = data.xpos[parent_id]
+            child_pos = data.xpos[ii]
+
+            # 计算连杆长度
+            length = np.linalg.norm(child_pos - parent_pos)
+
+            # 计算连杆中心位置
+            center_pos = (parent_pos + child_pos) / 2
+
+            # 保存信息
+            link_info[ii] = {
+                'center_joint': child_pos,
+                'joint_R': 0,
+                'length': length,
+                'center_pos': center_pos,
+                'link_R': length / 2
+            }
+        # 获取link_info的大小
+        num_links = len(link_info)
+        num_features = 3 + 1 + 1 + 3 + 1  # center_joint (3), joint_R (1), length (1), center_pos (3), link_R (1)
+
+        # 初始化一个矩阵来存储link_info中的值
+        link_matrix = np.zeros((num_links, num_features))
+
+        # 将link_info中的值填充到矩阵中
+        for iii, (link_id, info) in enumerate(link_info.items()):
+            link_matrix[iii, :3] = info['center_joint']
+            link_matrix[iii, 3] = info['joint_R']
+            link_matrix[iii, 4] = info['length']
+            link_matrix[iii, 5:8] = info['center_pos']
+            link_matrix[iii, 8] = info['link_R']
+        collision = check_collision(O1=link_matrix[:6, :3], O2=link_matrix[6:, :3],
+                                    R1=link_matrix[:6, 3], R2=link_matrix[6:, 3],
+                                    A=link_matrix[:6, 5:8], B=link_matrix[6:, 5:8],
+                                    Ra=link_matrix[:6, 8], Rb=link_matrix[6:, 8])
+        print(collision)
         # 计算初始姿态与舵机的关系
         # A = my_chain.forward_kinematics(np.append(np.append(np.array(0), data.qpos[:6]), np.array(0)))
         # init_orientation.as_matrix().T.dot(A[:3, :3])
