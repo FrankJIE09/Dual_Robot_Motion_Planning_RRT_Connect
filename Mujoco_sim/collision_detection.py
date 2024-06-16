@@ -35,10 +35,10 @@ def check_collision(O1, O2, A, B, R1, R2, Ra, Rb):
             #     print(f"Collision detected between O1[{i}] and B[{j}]")
             #     return 1
             if np.linalg.norm(A[i] - O2[j]) < (Ra[i] + R2[j]):
-                print(f"Collision detected between A[{i}] and O2[{j}]")
+                # print(f"Collision detected between A[{i}] and O2[{j}]")
                 return 1
             if np.linalg.norm(A[i] - B[j]) < (Ra[i] + Rb[j]):
-                print(f"Collision detected between A[{i}] and B[{j}]")
+                # print(f"Collision detected between A[{i}] and B[{j}]")
                 return 1
 
     # 如果没有检测到碰撞，返回 0
