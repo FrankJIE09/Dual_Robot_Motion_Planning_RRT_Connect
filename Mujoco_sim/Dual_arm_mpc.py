@@ -18,9 +18,11 @@ seg = 500
 def objective(x):
     global my_chain
     global new_goal
-    rrt = RRTConnect(chain=my_chain, start=x[1:7], goal=new_goal,max_iter=100)
-    rrt_path = rrt.planning(link_info_main=None)
+    global link_info_main
+    rrt = RRTConnect(chain=my_chain, start=x, goal=new_goal, max_iter=10)
+    rrt_path = rrt.planning(link_info_main=link_info_main)
     if rrt_path is None:
+        print("No path")
         return np.inf  # 如果无法规划路径，则返回无穷大
     # 计算最终路径点与目标的欧氏距离
     return np.linalg.norm(rrt_path[-1] - new_goal)
@@ -192,27 +194,18 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
         rrt = RRTConnect(my_chain, start=last_ik_joint_r[1:7], goal=new_goal, max_iter=5, step_size=0.1)
 
         last_ik_joint_r = ik_joint_r.copy()
-    
+        bounds = [(-2*np.pi, 2*np.pi) for _ in range(6)]  # 假设关节的运动范围在0到1之间
         # 从机械臂路径规划
-        rrt_path = rrt.planning(link_info_main)
-        if rrt_path is None:
-            print("RRT-Connect failed to find a path")
-            # break
-            data.ctrl = np.hstack((ik_joint[1:7], last_rrt_path[-1]))
-            mujoco.mj_step(model, data)
-            i = i + 1
-            viewer.sync()
-            robot_joint.append(ik_joint[1:7])
-            robot_slave_joint.append(last_rrt_path[-1])
-            continue
+        result = minimize(objective, last_ik_joint_r[1:7], bounds=bounds, method='SLSQP',options={'ftol': 0.1})
+        rrt_path = result.x
 
-        data.ctrl = np.hstack((ik_joint[1:7], rrt_path[-1]))
+        data.ctrl = np.hstack((ik_joint[1:7], rrt_path))
         last_rrt_path = rrt_path.copy()
         mujoco.mj_step(model, data)
         i = i + 1
         r_i = r_i + 1
         robot_joint.append(ik_joint[1:7])
-        robot_slave_joint.append(rrt_path[-1])
+        robot_slave_joint.append(rrt_path)
         viewer.sync()
 robot_joint = np.array(robot_joint)
 robot_slave_joint = np.array(robot_slave_joint)
