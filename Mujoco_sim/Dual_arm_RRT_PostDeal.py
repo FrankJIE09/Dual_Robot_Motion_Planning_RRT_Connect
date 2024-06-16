@@ -9,7 +9,9 @@ from ikpy.chain import Chain
 from Bézier_curve import bezier_curve
 import copy
 from rrt_connect_modify import RRTConnect
+
 seg = 500
+
 
 # 定义一个函数来计算连杆中心位置、关节位置及其半径
 def compute_link_info(chain, joint_angles, index_begin=0, y_offset=-1):
@@ -101,16 +103,16 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
 
     path_array = np.array([[init_pos[0], init_pos[1], init_pos[2]],
                            [init_pos[0] - 1.5, init_pos[1], init_pos[2] - 0.1],
-                           [init_pos[0]+0.2, init_pos[1], init_pos[2] - 0.2]]
+                           [init_pos[0] + 0.2, init_pos[1], init_pos[2] - 0.2]]
                           ) @ rz90_matrix
 
     path_array_r = np.array([[init_pos_r[0], init_pos_r[1], init_pos_r[2]],
                              [init_pos_r[0] + 1.5, init_pos_r[1], init_pos_r[2]],
-                             [init_pos_r[0]-0.2, init_pos_r[1], init_pos_r[2] - 0.2]]
+                             [init_pos_r[0] - 0.2, init_pos_r[1], init_pos_r[2] - 0.2]]
                             ) @ rz90_matrix
 
-    interp_pos = bezier_curve(path_array,seg=seg)
-    interp_pos_r = bezier_curve(path_array_r,seg=seg)
+    interp_pos = bezier_curve(path_array, seg=seg)
+    interp_pos_r = bezier_curve(path_array_r, seg=seg)
 
     i = 0
     init_matrix = data.xmat[6].reshape(3, 3).copy()
@@ -130,12 +132,18 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
     # 循环控制机械臂的姿态变化
     last_rrt_path = last_ik_joint_r[1:7]
     r_i = 0
+    over_delay = 0
     robot_joint = [data.qpos[:6]]
     robot_slave_joint = [data.qpos[6:]]
-    while i < seg+1 and r_i < seg:
+    while i < seg + 1 and r_i < seg + 1:
         print(i)
         if i >= seg:
-            i = seg-1
+            i = seg - 1
+        if r_i >= seg:
+            r_i = seg - 1
+            over_delay = over_delay + 1
+            if over_delay > 100:
+                break
         # 计算目标变换矩阵
         target_matrix[:3, :3] = np.dot(init_matrix, interp_rots[i].as_matrix())
         target_matrix[:3, 3] = interp_pos[i]
@@ -179,11 +187,11 @@ with mujoco.viewer.launch_passive(model, data) as viewer:
 robot_joint = np.array(robot_joint)
 robot_slave_joint = np.array(robot_slave_joint)
 
-filtered_robot_joint = uniform_filter1d(robot_joint,size=10,mode='reflect',axis=0)
-filtered_robot_slave_joint = uniform_filter1d(robot_slave_joint,size=10,mode='reflect',axis=0)
+filtered_robot_joint = uniform_filter1d(robot_joint, size=10, mode='reflect', axis=0)
+filtered_robot_slave_joint = uniform_filter1d(robot_slave_joint, size=10, mode='reflect', axis=0)
 with mujoco.viewer.launch_passive(model, data) as viewer:
     for i in range(len(robot_joint)):
-        data.ctrl = np.hstack((filtered_robot_joint[i,:], filtered_robot_slave_joint[i,:]))
+        data.ctrl = np.hstack((filtered_robot_joint[i, :], filtered_robot_slave_joint[i, :]))
         mujoco.mj_step(model, data)
         i = i + 1
         viewer.sync()
